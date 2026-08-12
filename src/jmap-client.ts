@@ -1,6 +1,6 @@
 import { FastmailAuth } from './auth.js';
 import { writeFile, mkdir } from 'fs/promises';
-import { dirname, resolve, normalize } from 'path';
+import { dirname, join, resolve, normalize } from 'path';
 import { homedir } from 'os';
 
 export interface JmapSession {
@@ -1066,9 +1066,20 @@ export class JmapClient {
 
   static readonly DEFAULT_DOWNLOADS_DIR = resolve(homedir(), 'Downloads', 'fastmail-mcp');
 
+  // A path from configuration or from a tool argument never passes through a
+  // shell, so a leading ~ arrives as a path component. Read it as the home
+  // directory, which is what whoever wrote it meant.
+  private static expandHome(path: string): string {
+    if (path === '~') return homedir();
+    if (path.startsWith('~/')) return join(homedir(), path.slice(2));
+    return path;
+  }
+
   static validateSavePath(savePath: string, downloadDir?: string): string {
-    const allowedDir = downloadDir ? resolve(normalize(downloadDir)) : JmapClient.DEFAULT_DOWNLOADS_DIR;
-    const resolved = resolve(normalize(savePath));
+    const allowedDir = downloadDir
+      ? resolve(normalize(JmapClient.expandHome(downloadDir)))
+      : JmapClient.DEFAULT_DOWNLOADS_DIR;
+    const resolved = resolve(normalize(JmapClient.expandHome(savePath)));
 
     if (resolved.includes('\0')) {
       throw new Error('Save path contains null bytes');

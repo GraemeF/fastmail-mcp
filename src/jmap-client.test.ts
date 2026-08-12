@@ -618,6 +618,39 @@ describe('validateSavePath', () => {
       },
     );
   });
+
+  it('reads a leading ~/ in the download directory as the home directory', () => {
+    const result = JmapClient.validateSavePath(
+      `${allowedDir}/photo.jpg`,
+      '~/Downloads/fastmail-mcp',
+    );
+    assert.equal(result, `${allowedDir}/photo.jpg`);
+  });
+
+  it('reads a leading ~/ in the save path as the home directory', () => {
+    const result = JmapClient.validateSavePath('~/Downloads/fastmail-mcp/photo.jpg');
+    assert.equal(result, `${allowedDir}/photo.jpg`);
+  });
+
+  it('reads a bare ~ as the home directory', () => {
+    const result = JmapClient.validateSavePath(`${homedir()}/photo.jpg`, '~');
+    assert.equal(result, `${homedir()}/photo.jpg`);
+  });
+
+  it('leaves a tilde that is not a home reference alone', () => {
+    const result = JmapClient.validateSavePath('/tmp/~backup/photo.jpg', '/tmp/~backup');
+    assert.equal(result, '/tmp/~backup/photo.jpg');
+  });
+
+  it('still rejects traversal out of a tilde download directory', () => {
+    assert.throws(
+      () => JmapClient.validateSavePath('~/../../etc/shadow', '~/Downloads/fastmail-mcp'),
+      (err: Error) => {
+        assert.match(err.message, /must be within/);
+        return true;
+      },
+    );
+  });
 });
 
 // ---------- sendEmail replyTo ----------
